@@ -1,5 +1,3 @@
-// 근처 네트워크의 좌트리오 서버를 찾는 클라이언트 코드
-
 #include <stdio.h>
 #include <winsock2.h>
 #include <string.h>
@@ -7,10 +5,10 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
-#define PORT 8888
+#define PORT 6974
 #define BROADCAST_IP "255.255.255.255"
 #define BUFFER_SIZE 1024
-#define TIMEOUT 2 // 타임아웃 설정 (초)
+#define TIMEOUT 5 // 타임아웃 설정 (초)
 #define MAX_SERVERS 100 // 최대 서버 수
 #define INET_ADDRSTRLEN 16 // IPv4 주소 문자열 길이
 
@@ -119,7 +117,7 @@ int main() {
 
                 buffer[recv_len] = '\0';
 
-                // 올바른 응답 확인 (여기서는 "Server Response"로 가정)
+                // 올바른 응답 확인
                 if (strcmp(buffer, "jtr: check response from server") == 0) {
                     const char* server_ip = inet_ntoa(from_addr.sin_addr);
                     add_server_ip(server_ip);

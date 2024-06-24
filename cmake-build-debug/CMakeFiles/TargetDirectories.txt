@@ -1,0 +1,3 @@
+C:/Users/chosu/CLionProjects/udp-jwatrio-server/cmake-build-debug/CMakeFiles/udp_jwatrio_server.dir
+C:/Users/chosu/CLionProjects/udp-jwatrio-server/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/chosu/CLionProjects/udp-jwatrio-server/cmake-build-debug/CMakeFiles/rebuild_cache.dir

@@ -54,10 +54,12 @@ int main() {
         printf("Received packet from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
         printf("Data: %s\n", buffer);
 
-        const char *message = "Server Response";
-        if (sendto(sockfd, message, strlen(message), 0, (struct sockaddr *)&client_addr, client_addr_len) == SOCKET_ERROR) {
-            printf("sendto() failed with error code : %d\n", WSAGetLastError());
-            break;
+        if(strcmp(buffer, "jtr: udp broadcast check") == 0) {
+            const char *response = "jtr: check response from server";
+            if (sendto(sockfd, response, strlen(response), 0, (struct sockaddr *)&client_addr, client_addr_len) == SOCKET_ERROR) {
+                printf("sendto() failed with error code : %d\n", WSAGetLastError());
+                break;
+            }
         }
     }
 

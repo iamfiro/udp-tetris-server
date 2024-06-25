@@ -24,6 +24,7 @@ typedef struct {
     int cleared_blocks;
     int combo_count;
     time_t last_clear_time;
+    int score;
 } Client;
 
 Client clients[MAX_CLIENTS];
@@ -64,6 +65,7 @@ void handle_dead_socket(int dead_socket_id) {
     clients[client_count - 1].cleared_blocks = 0;
     clients[client_count - 1].combo_count = 0;
     clients[client_count - 1].last_clear_time = 0;
+    clients[client_count - 1].score = 0;
 
     client_count--;
 
@@ -71,7 +73,7 @@ void handle_dead_socket(int dead_socket_id) {
 
     // 게임 상태 업데이트
     if (client_count == 0) {
-        game_state = PENDING;
+        // game_state = PENDING;
     } else if (client_count == 1) {
         game_state = WAITING;
     }
@@ -119,6 +121,7 @@ int main() {
         clients[i].cleared_blocks = 0;
         clients[i].combo_count = 0;
         clients[i].last_clear_time = 0;
+        clients[i].score = 0;
     }
 
     // Create socket
@@ -151,6 +154,7 @@ int main() {
             clients[client_count].cleared_blocks = 0;
             clients[client_count].combo_count = 0;
             clients[client_count].last_clear_time = time(NULL);
+            clients[client_count].score = 0;
             client_threads[client_count] = CreateThread(NULL, 0, client_handler, (void*)&clients[client_count], 0, NULL);
             client_count++;
 
@@ -193,36 +197,77 @@ DWORD WINAPI client_handler(void *arg) {
         buffer[read_size] = '\0';
         printf("Received from client %d: %s\n", client->id, buffer);
 
+        // 클라이언트가 세션 이름을 설정했을 때
         if (strncmp(buffer, "jtr: set name: ", strlen("jtr: set name: ")) == 0) {
             char *name_start = buffer + strlen("jtr: set name: ");
             init_room_name(name_start);
         }
 
-        // Process the received data
-        int cleared_blocks = atoi(buffer);
-        time_t current_time = time(NULL);
+        // 클라이언트가 라인 클리어를 보냈을 때
+        if (strncmp(buffer, "jtr: line clear: ", strlen("jtr: line clear: ")) == 0) {
+            int cleared_blocks = atoi(buffer + strlen("jtr: line clear: "));
+            time_t current_time = time(NULL);
 
-        if (cleared_blocks > 0) {
-            double time_diff = difftime(current_time, client->last_clear_time);
+            if (cleared_blocks > 0) {
+                double time_diff = difftime(current_time, client->last_clear_time);
 
-            if (time_diff < 2) { // If the block is cleared within 2 seconds, count as a combo
-                client->combo_count++;
-            } else {
-                client->combo_count = 1; // Reset combo if not cleared within 2 seconds
+                if (time_diff < 2) { // If the block is cleared within 2 seconds, count as a combo
+                    client->combo_count++;
+                } else {
+                    client->combo_count = 1; // Reset combo if not cleared within 2 seconds
+                }
+
+                client->cleared_blocks += cleared_blocks;
+                client->last_clear_time = current_time;
+
+                // 점수 계산
+                int base_score;
+                if (cleared_blocks >= 4) {
+                    base_score = 1000;
+                } else {
+                    switch (cleared_blocks) {
+                        case 1:
+                            base_score = 100;
+                            break;
+                        case 2:
+                            base_score = 300;
+                            break;
+                        case 3:
+                            base_score = 500;
+                            break;
+                        default:
+                            base_score = 0;
+                            break;
+                    }
+                }
+
+                int combo_bonus = (client->combo_count - 1) * 50; // 콤보 점수는 콤보 수에 따라 50점씩 증가
+                client->score += base_score + combo_bonus;
+
+                // Calculate damage based on combo (simplified example)
+                int damage = client->combo_count;
+
+                if (damage > 5) {
+                    damage = 5; // 대미지 최대값을 5로 제한
+                }
+
+                // Send damage packet to the other client
+                int other_client_id = (client->id == 0) ? 1 : 0;
+                char damage_packet[1024];
+                sprintf(damage_packet, "jtr damage: %d\n", damage);
+                send(clients[other_client_id].socket, damage_packet, strlen(damage_packet), 0);
+
+                // 클라이언트에게 점수 업데이트 메시지 전송
+                char score_update[1024];
+                sprintf(score_update, "jtr score: %d\n", client->score);
+                send(client->socket, score_update, strlen(score_update), 0);
             }
+        }
 
-            client->cleared_blocks += cleared_blocks;
-            client->last_clear_time = current_time;
-
-            // Calculate damage based on combo (simplified example)
-            int damage = client->combo_count;
-
-            // Send damage packet to the other client
+        // 클라이언트가 블록 이동을 보냈을 때
+        if (strncmp(buffer, "jtr: block move: ", strlen("jtr: block move: ")) == 0) {
             int other_client_id = (client->id == 0) ? 1 : 0;
-            char damage_packet[1024];
-            sprintf(damage_packet, "Damage: %d\n", damage);
-
-            send(clients[other_client_id].socket, damage_packet, strlen(damage_packet), 0);
+            send(clients[other_client_id].socket, buffer, strlen(buffer), 0);
         }
     }
 
@@ -255,9 +300,12 @@ DWORD WINAPI udp_ping_handler(void *arg) {
         printf("Received: %s\n", buffer); // 디버그용 출력
 
         if (strcmp(buffer, "jtr: udp broadcast check") == 0) {
-            printf("Received PING from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-            const char *response = "jtr: check response from server";
-            sendto(udp_socket, response, strlen(response), 0, (struct sockaddr *)&client_addr, client_addr_len);
+            // if (game_state != PENDING) {
+                printf("Received PING from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+                char response[1024];
+                sprintf(response, "jtr: check response from server|asd,0", room_name, client_count);
+                sendto(udp_socket, response, strlen(response), 0, (struct sockaddr *)&client_addr, client_addr_len);
+            // }
         }
     }
 

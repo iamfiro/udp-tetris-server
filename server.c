@@ -97,10 +97,6 @@ void create_udp_socket() {
     CreateThread(NULL, 0, udp_ping_handler, NULL, 0, NULL);
 }
 
-void handle_new_client() {
-
-}
-
 DWORD WINAPI client_handler(void *arg) {
     Client *client = (Client *)arg;
     char buffer[1024];
@@ -108,44 +104,46 @@ DWORD WINAPI client_handler(void *arg) {
 
     printf("[info] Client %d connected.\n", client->id);
 
+    // Keepalive 설정
+    int optval = 1;
+    setsockopt(client->socket, SOL_SOCKET, SO_KEEPALIVE, (char *)&optval, sizeof(optval));
+
     while ((read_size = recv(client->socket, buffer, sizeof(buffer), 0)) > 0) {
         buffer[read_size] = '\0';
         printf("[data] Received from client %d: %s\n", client->id, buffer);
 
-        if(game_state == WAITING) {
-            // 클라이언트가 자신의 이름을 보냈을때
-            if (strncmp(buffer, "jtr: set name: ", strlen("jtr: set name: ")) == 0) {
-                strcpy(client->name, buffer + strlen("jtr: set name: "));
-            }
-        } else {
-            // 클라이언트가 라인 클리어를 보냈을 때
-            if (strncmp(buffer, "jtr: line clear: ", strlen("jtr: line clear: ")) == 0) {
-                const int cleared_lines = atoi(buffer + strlen("jtr: line clear: "));
-                printf("[game] %d line clear event on %d client", cleared_lines, client->id);
-                // 다른 클라이언트에게도 같은 정보 전송
-                for (int i = 0; i < MAX_CLIENTS; i++) {
-                    if (clients[i].id != client->id && clients[i].socket != INVALID_SOCKET) {
-                        send(clients[i].socket, buffer, strlen(buffer), 0);
-                    }
+        // 클라이언트가 자신의 이름을 보냈을때
+        if (strncmp(buffer, "jtr: set name: ", strlen("jtr: set name: ")) == 0) {
+            strcpy(client->name, buffer + strlen("jtr: set name: "));
+        }
+
+        // 클라이언트가 라인 클리어를 보냈을 때
+        if (strncmp(buffer, "jtr: line clear: ", strlen("jtr: line clear: ")) == 0) {
+            const int cleared_lines = atoi(buffer + strlen("jtr: line clear: "));
+            printf("[game] %d line clear event on %d client\n", cleared_lines, client->id);
+            // 다른 클라이언트에게도 같은 정보 전송
+            for (int i = 0; i < client_count; i++) {
+                if (clients[i].id != client->id && clients[i].socket != INVALID_SOCKET) {
+                    send(clients[i].socket, buffer, strlen(buffer), 0);
                 }
             }
+        }
 
-            // 클라이언트가 블록 이동을 보냈을 때
-            if (strncmp(buffer, "jtr: block move: ", strlen("jtr: block move: ")) == 0) {
-                // 다른 클라이언트에게도 같은 정보 전송
-                for (int i = 0; i < MAX_CLIENTS; i++) {
-                    if (clients[i].id != client->id && clients[i].socket != INVALID_SOCKET) {
-                        send(clients[i].socket, buffer, strlen(buffer), 0);
-                    }
+        // 클라이언트가 블록 이동을 보냈을 때
+        if (strncmp(buffer, "jtr: block move: ", strlen("jtr: block move: ")) == 0) {
+            // 다른 클라이언트에게도 같은 정보 전송
+            for (int i = 0; i < client_count; i++) {
+                if (clients[i].id != client->id && clients[i].socket != INVALID_SOCKET) {
+                    send(clients[i].socket, buffer, strlen(buffer), 0);
                 }
             }
+        }
 
-            if (strncmp(buffer, "jtr: score: ", strlen("jtr: score: ")) == 0) {
-                // 다른 클라이언트에게도 같은 정보 전송
-                for (int i = 0; i < MAX_CLIENTS; i++) {
-                    if (clients[i].id != client->id && clients[i].socket != INVALID_SOCKET) {
-                        send(clients[i].socket, buffer, strlen(buffer), 0);
-                    }
+        if (strncmp(buffer, "jtr: score: ", strlen("jtr: score: ")) == 0) {
+            // 다른 클라이언트에게도 같은 정보 전송
+            for (int i = 0; i < client_count; i++) {
+                if (clients[i].id != client->id && clients[i].socket != INVALID_SOCKET) {
+                    send(clients[i].socket, buffer, strlen(buffer), 0);
                 }
             }
         }
@@ -253,16 +251,12 @@ int main(int argc, char **argv) {
             client_threads[client_count] = CreateThread(NULL, 0, client_handler, (void*)&clients[client_count], 0, NULL);
             client_count++;
 
-            const char *message = 'jtr: connection complete';
-            send(clients[client_count - 1].socket, message, strlen(message), 0);
-
             if (client_count == 2) {
                 game_state = START;
                 printf("[info] Game state changed to START\n");
 
                 for(int x=0; x<MAX_CLIENTS; x++) {
                     char start_message[1024];
-
                     sprintf(start_message, "jtr: game started|%s", clients[!x].name);
                     send(clients[x].socket, start_message, strlen(start_message), 0);
                 }
@@ -271,6 +265,7 @@ int main(int argc, char **argv) {
             printf("Maximum clients connected. Connection rejected.\n");
             const char *reject_message = "jtr: connection rejected";
             send(new_socket, reject_message, strlen(reject_message), 0);
+            closesocket(new_socket); // 소켓을 닫아야 함
         }
     }
 

@@ -137,15 +137,6 @@ DWORD WINAPI client_handler(void *arg) {
                     }
                 }
             }
-
-            // 클라이언트가 일시 정지를 보냈을 때
-            if (strncmp(buffer, "jtr: pause", strlen("jtr: pause")) == 0) {
-                for (int i = 0; i < MAX_CLIENTS; i++) {
-                    if (clients[i].id != client->id && clients[i].socket != INVALID_SOCKET) {
-                        send(clients[i].socket, buffer, strlen(buffer), 0);
-                    }
-                }
-            }
         }
     }
 

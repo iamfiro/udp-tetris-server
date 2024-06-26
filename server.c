@@ -264,8 +264,6 @@ int main(int argc, char **argv) {
             client_threads[client_count] = CreateThread(NULL, 0, client_handler, (void*)&clients[client_count], 0, NULL);
             client_count++;
 
-            printf("cli count : %d\n", client_count);
-
             const char *message = 'jtr: connection complete';
             send(clients[client_count - 1].socket, message, strlen(message), 0);
 
@@ -276,7 +274,7 @@ int main(int argc, char **argv) {
                 for(int x=0; x<MAX_CLIENTS; x++) {
                     char start_message[1024];
 
-                    sprintf(start_message, "jtr: game started|%s,%s", room_name, clients[!x].name);
+                    sprintf(start_message, "jtr: game started|%s", clients[!x].name);
                     send(clients[x].socket, start_message, strlen(start_message), 0);
                 }
             }

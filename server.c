@@ -23,7 +23,6 @@ typedef struct {
     int cleared_blocks;
     int combo_count;
     time_t last_clear_time;
-    int score;
     char name[100];
 } Client;
 
@@ -59,7 +58,6 @@ void handle_dead_socket(int dead_socket_id) {
     clients[client_count - 1].cleared_blocks = 0;
     clients[client_count - 1].combo_count = 0;
     clients[client_count - 1].last_clear_time = 0;
-    clients[client_count - 1].score = 0;
 
     client_count--;
 
@@ -224,7 +222,6 @@ int main(int argc, char **argv) {
         clients[i].cleared_blocks = 0;
         clients[i].combo_count = 0;
         clients[i].last_clear_time = 0;
-        clients[i].score = 0;
     }
 
     // Create socket
@@ -264,7 +261,6 @@ int main(int argc, char **argv) {
             clients[client_count].cleared_blocks = 0;
             clients[client_count].combo_count = 0;
             clients[client_count].last_clear_time = time(NULL);
-            clients[client_count].score = 0;
             client_threads[client_count] = CreateThread(NULL, 0, client_handler, (void*)&clients[client_count], 0, NULL);
             client_count++;
 

@@ -113,8 +113,13 @@ DWORD WINAPI client_handler(void *arg) {
         printf("[data] Received from client %d: %s\n", client->id, buffer);
 
         if(game_state == WAITING) {
-            const char *waiting_message = "jtr: game is not started yet. Please wait for other player";
-            send(client->socket, waiting_message, strlen(waiting_message), 0);
+            // 클라이언트가 자신의 이름을 보냈을때
+            if (strncmp(buffer, "jtr: set name: ", strlen("jtr: set name: ")) == 0) {
+                strcpy(client->name, buffer + strlen("jtr: set name: "));
+            } else {
+                const char *waiting_message = "jtr: game is not started yet. Please wait for other player";
+                send(client->socket, waiting_message, strlen(waiting_message), 0);
+            }
         } else {
             // 클라이언트가 라인 클리어를 보냈을 때
             if (strncmp(buffer, "jtr: line clear: ", strlen("jtr: line clear: ")) == 0) {
@@ -154,11 +159,6 @@ DWORD WINAPI client_handler(void *arg) {
                     }
                 }
             }
-        }
-
-        // 클라이언트가 자신의 이름을 보냈을때
-        if (strncmp(buffer, "jtr: set name: ", strlen("jtr: set name: ")) == 0) {
-            strcpy(client->name, buffer + strlen("jtr: set name: "));
         }
     }
 

@@ -148,6 +148,15 @@ DWORD WINAPI client_handler(void *arg) {
             }
         }
 
+        if (strncmp(buffer, "jtr: key: ", strlen("jtr: pieces: ")) == 0) {
+            // 다른 클라이언트에게도 같은 정보 전송
+            for (int i = 0; i < client_count; i++) {
+                if (clients[i].id != client->id && clients[i].socket != INVALID_SOCKET) {
+                    send(clients[i].socket, buffer, strlen(buffer), 0);
+                }
+            }
+        }
+
         if (strncmp(buffer, "jtr: score: ", strlen("jtr: score: ")) == 0) {
             // 다른 클라이언트에게도 같은 정보 전송
             for (int i = 0; i < client_count; i++) {

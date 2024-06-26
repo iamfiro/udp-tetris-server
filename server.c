@@ -120,6 +120,8 @@ DWORD WINAPI client_handler(void *arg) {
         } else {
             // 클라이언트가 라인 클리어를 보냈을 때
             if (strncmp(buffer, "jtr: line clear: ", strlen("jtr: line clear: ")) == 0) {
+                const int cleared_lines = atoi(buffer + strlen("jtr: line clear: "));
+                printf("[game] %d line clear event on %d client", cleared_lines, client->id);
                 // 다른 클라이언트에게도 같은 정보 전송
                 for (int i = 0; i < MAX_CLIENTS; i++) {
                     if (clients[i].id != client->id && clients[i].socket != INVALID_SOCKET) {
